@@ -3,43 +3,45 @@ import yfinance as yf
 import pandas as pd
 import pandas_ta as ta
 import plotly.graph_objects as go
-import numpy as np
 
-st.set_page_config(page_title="Pro Quant Scanner", layout="wide")
+st.set_page_config(page_title="Pro Trading Dashboard", layout="wide")
+st.title("📊 A-Z Master Market Scanner")
 
-st.title("🛡️ A-Z Ultimate Trading Dashboard")
-
-# Asset List
-asset_list = ['BTC-USD', 'ETH-USD', 'EURUSD=X', 'GBPUSD=X', 'GC=F']
-symbol = st.sidebar.selectbox("Select Asset", asset_list)
+# Sidebar
+asset = st.sidebar.selectbox("Select Asset", ['BTC-USD', 'ETH-USD', 'EURUSD=X', 'GBPUSD=X', 'GC=F'])
 timeframe = st.sidebar.selectbox("Timeframe", ['15m', '1h', '1d'])
 
-if st.sidebar.button('🚀 GENERATE MASTER SIGNAL'):
+if st.sidebar.button('Run Analysis'):
     try:
-        # Data Fetching
-        df = yf.download(symbol, period='15d', interval=timeframe, progress=False)
+        # Data fetch
+        df = yf.download(asset, period='15d', interval=timeframe, progress=False)
         
-        if not df.empty:
-            # Multi-Index columns fix
+        if df.empty:
+            st.error("No data found!")
+        else:
+            # Fix for new yfinance format
             if isinstance(df.columns, pd.MultiIndex):
                 df.columns = df.columns.get_level_values(0)
             
-            # Math Indicators
-            df['EMA_50'] = ta.ema(df['Close'], length=50)
-            df['EMA_100'] = ta.ema(df['Close'], length=100)
+            # Indicators
             df['RSI'] = ta.rsi(df['Close'], length=14)
+            df['EMA_50'] = ta.ema(df['Close'], length=50)
             
-            last = df.iloc[-1]
+            last_price = float(df['Close'].iloc[-1])
+            last_rsi = float(df['RSI'].iloc[-1])
             
-            # Display Results
-            c1, c2 = st.columns(2)
-            c1.metric("Current Price", f"{last['Close']:.4f}")
-            c2.metric("RSI", f"{last['RSI']:.2f}")
-
+            # Display
+            st.metric(f"Current Price ({asset})", f"${last_price:.2f}")
+            st.write(f"**RSI (14):** {last_rsi:.2f}")
+            
+            # Signal Logic
+            if last_rsi < 35: st.success("🚀 SIGNAL: BUY (Oversold)")
+            elif last_rsi > 65: st.error("📉 SIGNAL: SELL (Overbought)")
+            else: st.info("😐 Status: Neutral")
+            
             # Chart
             fig = go.Figure(data=[go.Candlestick(x=df.index, open=df['Open'], high=df['High'], low=df['Low'], close=df['Close'])])
             st.plotly_chart(fig, use_container_width=True)
-        else:
-            st.error("Market data not found.")
+            
     except Exception as e:
-        st.error(f"Error: {e}")
+        st.error(f"Technical Error: {e}")
