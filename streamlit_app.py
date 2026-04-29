@@ -3,47 +3,85 @@ import yfinance as yf
 import pandas as pd
 import pandas_ta as ta
 import plotly.graph_objects as go
+from datetime import datetime, timedelta
+import numpy as np
 
-st.set_page_config(page_title="A-Z Pro Analyzer", layout="wide")
-st.title("📊 A-Z Professional Market Scanner")
+# ============================================================================
+# PAGE CONFIGURATION
+# ============================================================================
+st.set_page_config(
+    page_title="Trading Dashboard",
+    page_icon="",
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
 
-# Sidebar
-symbol = st.sidebar.selectbox("Select Pair", ['BTC-USD', 'ETH-USD', 'EURUSD=X', 'GBPUSD=X', 'GC=F'])
-timeframe = st.sidebar.selectbox("Interval", ['15m', '1h', '1d'])
+st.markdown("""
+<style>
+    .metric-card {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        padding: 20px;
+        border-radius: 10px;
+        color: white;
+        text-align: center;
+    }
+    .buy-signal {
+        background: #10b981;
+        padding: 15px;
+        border-radius: 8px;
+        color: white;
+        font-weight: bold;
+    }
+    .sell-signal {
+        background: #ef4444;
+        padding: 15px;
+        border-radius: 8px;
+        color: white;
+        font-weight: bold;
+    }
+    .neutral-signal {
+        background: #6b7280;
+        padding: 15px;
+        border-radius: 8px;
+        color: white;
+        font-weight: bold;
+    }
+</style>
+""", unsafe_allow_html=True)
 
-if st.sidebar.button('🚀 RUN ANALYSIS'):
+# ============================================================================
+# SIDEBAR CONFIGURATION
+# ============================================================================
+st.sidebar.title(" Dashboard Settings")
+
+pairs = {
+    "Bitcoin": "BTC-USD",
+    "Ethereum": "ETH-USD",
+    "EUR/USD": "EURUSD=X",
+    "GBP/USD": "GBPUSD=X",
+    "Gold": "GC=F"
+}
+
+selected_pair_name = st.sidebar.selectbox("Select Trading Pair", list(pairs.keys()))
+selected_pair = pairs[selected_pair_name]
+
+timeframes = {
+    "5 Minutes": "5m",
+    "15 Minutes": "15m",
+    "1 Hour": "1h",
+    "1 Day": "1d"
+}
+
+selected_timeframe_name = st.sidebar.selectbox("Select Timeframe", list(timeframes.keys()))
+selected_timeframe = timeframes[selected_timeframe_name]
+
+run_analysis = st.sidebar.button(" Run Analysis", use_container_width=True)
+
+# ============================================================================
+# DATA FETCHING FUNCTION
+# ============================================================================
+@st.cache_data(ttl=300)
+def fetch_data(pair, interval):
+    """Fetch live data from yfinance with error handling."""
     try:
-        # Data fetch
-        df = yf.download(symbol, period='20d', interval=timeframe, progress=False)
-        
-        if not df.empty:
-            # Fix for MultiIndex
-            if isinstance(df.columns, pd.MultiIndex):
-                df.columns = df.columns.get_level_values(0)
-            
-            # Indicators
-            df['EMA_50'] = ta.ema(df['Close'], length=50)
-            df['EMA_100'] = ta.ema(df['Close'], length=100)
-            df['RSI'] = ta.rsi(df['Close'], length=14)
-            df['ADX'] = ta.adx(df['High'], df['Low'], df['Close'])['ADX_14']
-            
-            last = df.iloc[-1]
-            
-            # Display Metrics
-            c1, c2, c3 = st.columns(3)
-            c1.metric("Live Price", f"{float(last['Close']):.2f}")
-            c2.metric("RSI", f"{float(last['RSI']):.1f}")
-            c3.metric("ADX", f"{float(last['ADX']):.1f}")
-            
-            # Simple Logic
-            if float(last['RSI']) < 35: st.success("🚀 SIGNAL: BUY")
-            elif float(last['RSI']) > 65: st.error("📉 SIGNAL: SELL")
-            else: st.info("😐 Status: Neutral")
-
-            # Chart
-            fig = go.Figure(data=[go.Candlestick(x=df.index, open=df['Open'], high=df['High'], low=df['Low'], close=df['Close'])])
-            st.plotly_chart(fig, use_container_width=True)
-        else:
-            st.error("Market data not found!")
-    except Exception as e:
-        st.error(f"Technical Error: {e}")
+        if interval == "5m
